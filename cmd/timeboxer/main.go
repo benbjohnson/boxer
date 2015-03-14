@@ -20,11 +20,11 @@ func main() {
 	ticker := timeboxer.NewTicker()
 	ticker.Step = *step
 	ticker.Interval = *interval
-	ticker.StepHandler = debugStepHandler
-	ticker.IntervalHandler = debugIntervalHandler
+	ticker.StepHandler = LogStepHandler
+	ticker.IntervalHandler = LogIntervalHandler
 
-	// Reset logging flags.
-	log.SetFlags(log.LstdFlags)
+	// Notify user of the current settings.
+	log.Printf("Timeboxer running with %s intervals and %s steps...", ticker.Interval, ticker.Step)
 
 	// Begin ticking.
 	for {
@@ -33,6 +33,5 @@ func main() {
 	}
 }
 
-// These are just debugging functions.
-func debugStepHandler(i, n int) { log.Printf("STEP> %d / %d", i, n) }
-func debugIntervalHandler()     { log.Printf("INTERVAL>") }
+func LogStepHandler(i, n int) { log.Printf("Step %d of %d occurred.", i, n) }
+func LogIntervalHandler()     { log.Printf("\nNew interval occurred.") }
