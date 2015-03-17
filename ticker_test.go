@@ -1,27 +1,35 @@
-package timeboxer_test
+package box_test
 
 import (
 	"testing"
 	"time"
 
-	"github.com/benbjohnson/timeboxer"
+	"github.com/benbjohnson/box"
 )
 
 // Ensure the ticker can tick for each new step and interval.
 func TestTicker_Tick(t *testing.T) {
 	// Create a new ticker that steps every 1m and intervals every 15m.
-	ticker := timeboxer.NewTicker()
-	ticker.Step = 1 * time.Minute
-	ticker.Interval = 15 * time.Minute
+	ticker := box.NewTicker()
 
 	// Mock the current time.
 	now := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
 	ticker.NowFunc = func() time.Time { return now }
 
-	// Setup step and interval functions.
+	// Setup command with a handler.
 	var stepN, intervalN int
-	ticker.StepHandler = func(i, n int) { stepN++ }
-	ticker.IntervalHandler = func() { intervalN++ }
+	cmd := box.Command{
+		Step:     1 * time.Minute,
+		Interval: 15 * time.Minute,
+		Handler: func(i, n int) error {
+			stepN++
+			if i == 0 {
+				intervalN++
+			}
+			return nil
+		},
+	}
+	ticker.Commands = append(ticker.Commands, cmd)
 
 	// Execute the initial tick.
 	ticker.Tick()

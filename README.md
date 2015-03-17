@@ -1,11 +1,11 @@
-Timeboxer
-=========
+Boxer
+=====
 
-Timeboxer is a small utility application that runs commands on a given interval
-and steps within that interval. For example, I may want to have my computer make
+Boxer is a small utility application that runs commands on a given interval and
+steps within that interval. For example, I may want to have my computer make
 a tick noise every five minutes but make a beep every hour.
 
-The timeboxer application is still in early development but it's meant to be
+This application is still in early development but it's meant to be
 configurable so you can run any script on a given step or interval.
 
 
@@ -31,7 +31,7 @@ several hours go by and I'm in a rabbit hole. Checking in helps prevent that.
 Reverse timeboxing has been great... when I do it. Unfortunately, it still
 requires that I remember to write down something every half hour. So I decided
 to build a tool that helps remind me of these intervals and gives me a way to
-visualize the steps within these intervals. Thus, timeboxer was born.
+visualize the steps within these intervals. Thus, box was born.
 
 
 ## Usage
@@ -39,14 +39,14 @@ visualize the steps within these intervals. Thus, timeboxer was born.
 To install, simply run `go get` from the command line:
 
 ```sh
-$ go get github.com/benbjohnson/timeboxer/...
+$ go get github.com/benbjohnson/boxer/...
 ```
 
-Then run timeboxer:
+Then run `boxer`:
 
 ```sh
-$ timeboxer
-Timeboxer running with 15m intervals and 1m steps...
+$ boxer
+Boxer running...
 ```
 
-Timeboxer will log whenever a new interval or step occurred.
+Boxer will log whenever a new interval or step occurred.
