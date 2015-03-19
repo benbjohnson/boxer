@@ -1,16 +1,18 @@
-package box_test
+package boxer_test
 
 import (
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/benbjohnson/box"
+	"github.com/benbjohnson/boxer"
 )
 
 // Ensure the ticker can tick for each new step and interval.
 func TestTicker_Tick(t *testing.T) {
 	// Create a new ticker that steps every 1m and intervals every 15m.
-	ticker := box.NewTicker()
+	ticker := boxer.NewTicker()
 
 	// Mock the current time.
 	now := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
@@ -18,7 +20,7 @@ func TestTicker_Tick(t *testing.T) {
 
 	// Setup command with a handler.
 	var stepN, intervalN int
-	cmd := box.Command{
+	cmd := boxer.Command{
 		Step:     1 * time.Minute,
 		Interval: 15 * time.Minute,
 		Handler: func(i, n int) error {
@@ -46,5 +48,19 @@ func TestTicker_Tick(t *testing.T) {
 		t.Fatalf("unexpected step count: %d", stepN)
 	} else if intervalN != 5 {
 		t.Fatalf("unexpected interval count: %d", intervalN)
+	}
+}
+
+// Ensure the default command executor can execute and return the output.
+func TestDefaultCommandExecutor(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping on windows")
+	}
+
+	b, err := boxer.DefaultCommandExecutor("echo", []string{"foo", "bar"}, strings.NewReader(""))
+	if err != nil {
+		t.Fatal(err)
+	} else if string(b) != "foo bar\n" {
+		t.Fatalf("unexpected output: %s", b)
 	}
 }

@@ -1,6 +1,7 @@
-package box
+package boxer
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -82,3 +83,6 @@ func DefaultCommandExecutor(name string, args []string, stdin io.Reader) ([]byte
 	cmd.Stdin = stdin
 	return cmd.CombinedOutput()
 }
+
+func warn(v ...interface{})              { fmt.Fprintln(os.Stderr, v...) }
+func warnf(msg string, v ...interface{}) { fmt.Fprintf(os.Stderr, msg+"\n", v...) }

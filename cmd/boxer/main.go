@@ -3,15 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
+	"image/color"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/benbjohnson/box"
+	"github.com/benbjohnson/boxer"
 )
 
 func main() {
@@ -30,7 +33,7 @@ type Main struct {
 	TickInterval time.Duration
 
 	// The function used to execute OS commands.
-	Executor box.CommandExecutor
+	Executor boxer.CommandExecutor
 
 	// The logger passed to the ticker during execution.
 	Logger *log.Logger
@@ -42,7 +45,7 @@ type Main struct {
 func NewMain() *Main {
 	return &Main{
 		TickInterval: DefaultTickInterval,
-		Executor:     box.DefaultCommandExecutor,
+		Executor:     boxer.DefaultCommandExecutor,
 		Logger:       log.New(os.Stderr, "", 0),
 
 		closing: make(chan struct{}, 0),
@@ -74,7 +77,10 @@ func (m *Main) Run(args []string) error {
 	}
 
 	// Create a new ticker based on the config.
-	ticker := NewTicker(config, m.Executor)
+	ticker, err := NewTicker(config, m.Executor)
+	if err != nil {
+		return fmt.Errorf("cannot create ticker: %s", err)
+	}
 
 	// Notify user of the current settings.
 	log.Printf("Boxer running with %d commands...", len(ticker.Commands))
@@ -117,29 +123,50 @@ func DefaultConfigPath() (string, error) {
 }
 
 // NewTicker creates a new ticker from configuration.
-func NewTicker(c *Config, exec box.CommandExecutor) *box.Ticker {
-	t := box.NewTicker()
+func NewTicker(c *Config, exec boxer.CommandExecutor) (*boxer.Ticker, error) {
+	t := boxer.NewTicker()
 
 	if c.Wallpaper.Enabled {
-		t.Commands = append(t.Commands, box.Command{
+		// Parse foreground color from config.
+		foreground, err := ParseColor(c.Wallpaper.Foreground)
+		if err != nil {
+			return nil, fmt.Errorf("parse wallpaper foreground: %s", err)
+		}
+
+		// Parse backgroun color from config.
+		background, err := ParseColor(c.Wallpaper.Background)
+		if err != nil {
+			return nil, fmt.Errorf("parse wallpaper background: %s", err)
+		}
+
+		// Create a wallpaper generator.
+		generator := boxer.NewWallpaperGenerator(foreground, background)
+
+		// Generate a new command.
+		t.Commands = append(t.Commands, boxer.Command{
 			Name:     "wallpaper",
 			Step:     c.Wallpaper.Step.Duration,
 			Interval: c.Wallpaper.Interval.Duration,
-			Handler:  box.NewWallpaperHandler(exec, filepath.Join(c.WorkDir, "wallpaper")),
+			Handler: boxer.NewWallpaperHandler(
+				exec, boxer.DesktopSize, generator,
+				filepath.Join(c.WorkDir, "wallpaper"),
+			),
 		})
 	}
 
-	return t
+	return t, nil
 }
 
 // Config represnts the configuration file used to store command settings.
 type Config struct {
-	WorkDir string
+	WorkDir string `toml:"work_dir"`
 
 	Wallpaper struct {
-		Enabled  bool `toml:"enabled"`
-		Step     Duration
-		Interval Duration
+		Enabled    bool     `toml:"enabled"`
+		Step       Duration `toml:"step"`
+		Interval   Duration `toml:"interval"`
+		Foreground string   `toml:"foreground"`
+		Background string   `toml:"background"`
 	} `toml:"wallpaper"`
 }
 
@@ -149,6 +176,8 @@ func NewConfig() *Config {
 	c.Wallpaper.Enabled = false
 	c.Wallpaper.Step = Duration{1 * time.Minute}
 	c.Wallpaper.Interval = Duration{15 * time.Minute}
+	c.Wallpaper.Foreground = "#9AC97C"
+	c.Wallpaper.Background = "#534B4D"
 	return &c
 }
 
@@ -166,3 +195,19 @@ func (d *Duration) UnmarshalText(text []byte) error {
 	d.Duration = v
 	return nil
 }
+
+// ParseColor parses a hex color.
+func ParseColor(s string) (color.RGBA, error) {
+	m := regexp.MustCompile(`^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$`).FindStringSubmatch(s)
+	if m == nil {
+		return color.RGBA{}, fmt.Errorf("cannot parse color: %q", s)
+	}
+
+	r, _ := strconv.ParseUint(m[1], 16, 8)
+	g, _ := strconv.ParseUint(m[2], 16, 8)
+	b, _ := strconv.ParseUint(m[3], 16, 8)
+	return color.RGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: 0xFF}, nil
+}
+
+func warn(v ...interface{})              { fmt.Fprintln(os.Stderr, v...) }
+func warnf(msg string, v ...interface{}) { fmt.Fprintf(os.Stderr, msg+"\n", v...) }
