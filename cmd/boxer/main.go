@@ -192,8 +192,8 @@ func NewConfig() *Config {
 	c.Wallpaper.Enabled = false
 	c.Wallpaper.Step = Duration{1 * time.Minute}
 	c.Wallpaper.Interval = Duration{15 * time.Minute}
-	c.Wallpaper.Foreground = "#9AC97C"
-	c.Wallpaper.Background = "#534B4D"
+	c.Wallpaper.Foreground = "#534B4D"
+	c.Wallpaper.Background = "#9AC97C"
 
 	c.MenuBar.Enabled = false
 	c.MenuBar.Step = Duration{5 * time.Minute}
