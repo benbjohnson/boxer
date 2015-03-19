@@ -42,11 +42,15 @@ To install, simply run `go get` from the command line:
 $ go get github.com/benbjohnson/boxer/...
 ```
 
+Next you'll need to set up a configuration file. Copy the `boxer.sample.conf`
+to `boxer.conf` in your home directory and adjust settings as needed.
+
 Then run `boxer`:
 
 ```sh
 $ boxer
-Boxer running...
 ```
 
-Boxer will log whenever a new interval or step occurred.
+The default configuration will enable the wallpaper module which updates your
+desktop background in 1 minute increments and restarts every 15 minutes on
+the quarter hour.
