@@ -154,6 +154,15 @@ func NewTicker(c *Config, exec boxer.CommandExecutor) (*boxer.Ticker, error) {
 		})
 	}
 
+	if c.MenuBar.Enabled {
+		t.Commands = append(t.Commands, boxer.Command{
+			Name:     "menu_bar",
+			Step:     c.MenuBar.Step.Duration,
+			Interval: c.MenuBar.Interval.Duration,
+			Handler:  boxer.NewMenuBarHandler(exec),
+		})
+	}
+
 	return t, nil
 }
 
@@ -168,16 +177,28 @@ type Config struct {
 		Foreground string   `toml:"foreground"`
 		Background string   `toml:"background"`
 	} `toml:"wallpaper"`
+
+	MenuBar struct {
+		Enabled  bool     `toml:"enabled"`
+		Step     Duration `toml:"step"`
+		Interval Duration `toml:"interval"`
+	} `toml:"menu_bar"`
 }
 
 // NewConfig returns an instance of Config with default settings.
 func NewConfig() *Config {
 	var c Config
+
 	c.Wallpaper.Enabled = false
 	c.Wallpaper.Step = Duration{1 * time.Minute}
 	c.Wallpaper.Interval = Duration{15 * time.Minute}
 	c.Wallpaper.Foreground = "#9AC97C"
 	c.Wallpaper.Background = "#534B4D"
+
+	c.MenuBar.Enabled = false
+	c.MenuBar.Step = Duration{5 * time.Minute}
+	c.MenuBar.Interval = Duration{15 * time.Minute}
+
 	return &c
 }
 

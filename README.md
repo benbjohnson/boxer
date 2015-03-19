@@ -53,4 +53,5 @@ $ boxer
 
 The default configuration will enable the wallpaper module which updates your
 desktop background in 1 minute increments and restarts every 15 minutes on
-the quarter hour.
+the quarter hour. The menu bar will also cycle between dark mode and light mode
+every 5 minutes and flash every 15 minutes.

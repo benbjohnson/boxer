@@ -101,7 +101,49 @@ func DesktopSize(exec CommandExecutor) (w, h int, err error) {
 
 const desktopSizeScript = `
 tell application "Finder"
-    get bounds of window of desktop
+  get bounds of window of desktop
+end tell
+`
+
+// NewMenuBarHandler returns a handler for flashing the menu bar.
+func NewMenuBarHandler(exec CommandExecutor) Handler {
+	return func(i, n int) error {
+		// Flash the menu bar on the first step.
+		if i == 0 {
+			if _, err := exec(OSAScriptPath, nil, strings.NewReader(strings.TrimSpace(flashDarkModeScript))); err != nil {
+				return fmt.Errorf("exec flash: %s", err)
+			}
+			return nil
+		}
+
+		// For other steps set dark mode on and off every other step.
+		darkMode := (i%2 == 1)
+		src := fmt.Sprintf(strings.TrimSpace(setDarkModeScript), darkMode)
+		if _, err := exec(OSAScriptPath, nil, strings.NewReader(src)); err != nil {
+			return fmt.Errorf("exec set dark mode: %s", err)
+		}
+		return nil
+	}
+}
+
+const flashDarkModeScript = `
+tell application "System Events"
+  tell appearance preferences
+    repeat 5 times
+      set dark mode to true
+      delay 1
+      set dark mode to false
+      delay 1
+    end repeat
+  end tell
+end tell
+`
+
+const setDarkModeScript = `
+tell application "System Events"
+  tell appearance preferences
+    set dark mode to %v
+  end tell
 end tell
 `
 
