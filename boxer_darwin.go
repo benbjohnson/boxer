@@ -11,10 +11,16 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
-// OSAScriptPath is the path to the "osascript" binary.
-const OSAScriptPath = `/usr/bin/osascript`
+const (
+	// OSAScriptPath is the path to the "osascript" binary.
+	OSAScriptPath = `/usr/bin/osascript`
+
+	// SayPath is the path to the "say" binary.
+	SayPath = `/usr/bin/say`
+)
 
 // NewWallpaperHandler returns a handler for visualizing steps with the desktop wallpaper.
 func NewWallpaperHandler(exec CommandExecutor, sizer DesktopSizer, generator WallpaperGenerator, path string) Handler {
@@ -147,7 +153,47 @@ tell application "System Events"
 end tell
 `
 
-const soundSourceCheck = `
+// NewAnnouncementHandler returns a handler for announcing the current time.
+func NewAnnouncementHandler(exec CommandExecutor, enableFunc EnableFunc, voice string) Handler {
+	return func(i, n int) error {
+		// Check if the announcement should run.
+		if v, err := enableFunc(); err != nil {
+			return fmt.Errorf("enable: %s", err)
+		} else if !v {
+			return nil
+		}
+
+		// Announce the current time.
+		text := time.Now().Format("3:04")
+		if _, err := exec(SayPath, []string{"-v", voice, text}, nil); err != nil {
+			return fmt.Errorf("exec say: %s", err)
+		}
+		return nil
+	}
+}
+
+// NewSoundSourceEnableFunc returns a function that returns true if a source source is in use.
+func NewSoundSourceEnableFunc(exec CommandExecutor, source string) EnableFunc {
+	return func() (bool, error) {
+		// Return true if source is blank.
+		if source == "" {
+			return true, nil
+		}
+
+		// Check if the current source matches.
+		if b, err := exec(OSAScriptPath, nil, strings.NewReader(strings.TrimSpace(soundSourceScript))); err != nil {
+			return false, fmt.Errorf("exec source source: %s", err)
+		} else if strings.TrimSpace(string(b)) == source {
+			return true, nil
+		}
+
+		return false, nil
+	}
+}
+
+type EnableFunc func() (bool, error)
+
+const soundSourceScript = `
 tell application "System Preferences"
    reveal anchor "output" of pane id ¬
        "com.apple.preference.sound"

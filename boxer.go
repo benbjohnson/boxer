@@ -40,11 +40,22 @@ func (t *Ticker) Tick() {
 
 	// Iterate over each command.
 	for _, cmd := range t.Commands {
+		// Initialize step to the interval if there is no step.
+		step, interval := cmd.Step, cmd.Interval
+		if step == 0 {
+			step = cmd.Interval
+		}
+
 		// Check if we've entered a new step within the interval.
-		if t.prev.Truncate(cmd.Step) != now.Truncate(cmd.Step) && cmd.Handler != nil {
+		if t.prev.Truncate(step) != now.Truncate(step) && cmd.Handler != nil {
 			// Calculate the current step number & total steps.
-			i := int(now.Truncate(cmd.Step).Sub(now.Truncate(cmd.Interval)) / cmd.Step)
-			n := int(cmd.Interval / cmd.Step)
+			var i, n int
+			if step == 0 {
+				i, n = 0, 1
+			} else {
+				i = int(now.Truncate(step).Sub(now.Truncate(interval)) / step)
+				n = int(interval / step)
+			}
 
 			// Execute the command's handler.
 			if err := cmd.Handler(i, n); err != nil {

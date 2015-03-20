@@ -55,8 +55,8 @@ func NewMain() *Main {
 // Run excutes the program.
 func (m *Main) Run(args []string) error {
 	// Parse CLI arguments.
-	configPath := flag.String("config", "", "config path")
 	fs := flag.NewFlagSet("boxer", flag.ContinueOnError)
+	configPath := fs.String("config", "", "config path")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -163,6 +163,16 @@ func NewTicker(c *Config, exec boxer.CommandExecutor) (*boxer.Ticker, error) {
 		})
 	}
 
+	if c.Announcement.Enabled {
+		enableFunc := boxer.NewSoundSourceEnableFunc(exec, c.Announcement.Source)
+
+		t.Commands = append(t.Commands, boxer.Command{
+			Name:     "announcement",
+			Interval: c.Announcement.Interval.Duration,
+			Handler:  boxer.NewAnnouncementHandler(exec, enableFunc, c.Announcement.Voice),
+		})
+	}
+
 	return t, nil
 }
 
@@ -183,6 +193,13 @@ type Config struct {
 		Step     Duration `toml:"step"`
 		Interval Duration `toml:"interval"`
 	} `toml:"menu_bar"`
+
+	Announcement struct {
+		Enabled  bool     `toml:"enabled"`
+		Interval Duration `toml:"interval"`
+		Voice    string   `toml:"voice"`
+		Source   string   `toml:"source"`
+	} `toml:"announcement"`
 }
 
 // NewConfig returns an instance of Config with default settings.
@@ -198,6 +215,11 @@ func NewConfig() *Config {
 	c.MenuBar.Enabled = false
 	c.MenuBar.Step = Duration{5 * time.Minute}
 	c.MenuBar.Interval = Duration{15 * time.Minute}
+
+	c.Announcement.Enabled = false
+	c.Announcement.Interval = Duration{1 * time.Hour}
+	c.Announcement.Voice = "Alex"
+	c.Announcement.Source = ""
 
 	return &c
 }
