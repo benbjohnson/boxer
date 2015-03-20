@@ -154,22 +154,20 @@ func NewTicker(c *Config, exec boxer.CommandExecutor) (*boxer.Ticker, error) {
 		})
 	}
 
+	if c.Announcement.Enabled {
+		t.Commands = append(t.Commands, boxer.Command{
+			Name:     "announcement",
+			Interval: c.Announcement.Interval.Duration,
+			Handler:  boxer.NewAnnouncementHandler(exec),
+		})
+	}
+
 	if c.MenuBar.Enabled {
 		t.Commands = append(t.Commands, boxer.Command{
 			Name:     "menu_bar",
 			Step:     c.MenuBar.Step.Duration,
 			Interval: c.MenuBar.Interval.Duration,
 			Handler:  boxer.NewMenuBarHandler(exec),
-		})
-	}
-
-	if c.Announcement.Enabled {
-		enableFunc := boxer.NewSoundSourceEnableFunc(exec, c.Announcement.Source)
-
-		t.Commands = append(t.Commands, boxer.Command{
-			Name:     "announcement",
-			Interval: c.Announcement.Interval.Duration,
-			Handler:  boxer.NewAnnouncementHandler(exec, enableFunc, c.Announcement.Voice),
 		})
 	}
 
@@ -217,9 +215,7 @@ func NewConfig() *Config {
 	c.MenuBar.Interval = Duration{15 * time.Minute}
 
 	c.Announcement.Enabled = false
-	c.Announcement.Interval = Duration{1 * time.Hour}
-	c.Announcement.Voice = "Alex"
-	c.Announcement.Source = ""
+	c.Announcement.Interval = Duration{30 * time.Minute}
 
 	return &c
 }

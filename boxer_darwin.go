@@ -14,13 +14,8 @@ import (
 	"time"
 )
 
-const (
-	// OSAScriptPath is the path to the "osascript" binary.
-	OSAScriptPath = `/usr/bin/osascript`
-
-	// SayPath is the path to the "say" binary.
-	SayPath = `/usr/bin/say`
-)
+// OSAScriptPath is the path to the "osascript" binary.
+const OSAScriptPath = `/usr/bin/osascript`
 
 // NewWallpaperHandler returns a handler for visualizing steps with the desktop wallpaper.
 func NewWallpaperHandler(exec CommandExecutor, sizer DesktopSizer, generator WallpaperGenerator, path string) Handler {
@@ -43,8 +38,8 @@ func NewWallpaperHandler(exec CommandExecutor, sizer DesktopSizer, generator Wal
 
 		// Execute AppleScript to update the current background.
 		src := fmt.Sprintf(strings.TrimSpace(setWallpaperScript), imgpath)
-		if _, err := exec(OSAScriptPath, nil, strings.NewReader(src)); err != nil {
-			return fmt.Errorf("exec: %s", err)
+		if b, err := exec(OSAScriptPath, nil, strings.NewReader(src)); err != nil {
+			return fmt.Errorf("exec: %s", b)
 		}
 		return nil
 	}
@@ -95,7 +90,7 @@ type DesktopSizer func(exec CommandExecutor) (w, h int, err error)
 // DesktopSize returns the size of the desktop screen.
 func DesktopSize(exec CommandExecutor) (w, h int, err error) {
 	if b, err := exec(OSAScriptPath, nil, strings.NewReader(strings.TrimSpace(desktopSizeScript))); err != nil {
-		return 0, 0, fmt.Errorf("exec: %s", err)
+		return 0, 0, fmt.Errorf("exec: %s", b)
 	} else if m := regexp.MustCompile(`^\d+, \d+, (\d+), (\d+)`).FindStringSubmatch(string(b)); m == nil {
 		return 0, 0, fmt.Errorf("unexpected exec output: %s", b)
 	} else {
@@ -116,8 +111,8 @@ func NewMenuBarHandler(exec CommandExecutor) Handler {
 	return func(i, n int) error {
 		// Flash the menu bar on the first step.
 		if i == 0 {
-			if _, err := exec(OSAScriptPath, nil, strings.NewReader(strings.TrimSpace(flashDarkModeScript))); err != nil {
-				return fmt.Errorf("exec flash: %s", err)
+			if b, err := exec(OSAScriptPath, nil, strings.NewReader(strings.TrimSpace(flashDarkModeScript))); err != nil {
+				return fmt.Errorf("exec flash: %s", b)
 			}
 			return nil
 		}
@@ -125,8 +120,8 @@ func NewMenuBarHandler(exec CommandExecutor) Handler {
 		// For other steps set dark mode on and off every other step.
 		darkMode := (i%2 == 1)
 		src := fmt.Sprintf(strings.TrimSpace(setDarkModeScript), darkMode)
-		if _, err := exec(OSAScriptPath, nil, strings.NewReader(src)); err != nil {
-			return fmt.Errorf("exec set dark mode: %s", err)
+		if b, err := exec(OSAScriptPath, nil, strings.NewReader(src)); err != nil {
+			return fmt.Errorf("exec set dark mode: %s", b)
 		}
 		return nil
 	}
@@ -154,53 +149,14 @@ end tell
 `
 
 // NewAnnouncementHandler returns a handler for announcing the current time.
-func NewAnnouncementHandler(exec CommandExecutor, enableFunc EnableFunc, voice string) Handler {
+func NewAnnouncementHandler(exec CommandExecutor) Handler {
 	return func(i, n int) error {
-		// Check if the announcement should run.
-		if v, err := enableFunc(); err != nil {
-			return fmt.Errorf("enable: %s", err)
-		} else if !v {
-			return nil
-		}
-
-		// Announce the current time.
-		text := time.Now().Format("3:04")
-		if _, err := exec(SayPath, []string{"-v", voice, text}, nil); err != nil {
-			return fmt.Errorf("exec say: %s", err)
+		src := fmt.Sprintf(displayNotificationScript, time.Now().Format("3:04pm"))
+		if b, err := exec(OSAScriptPath, nil, strings.NewReader(src)); err != nil {
+			return fmt.Errorf("exec display notification: %s", b)
 		}
 		return nil
 	}
 }
 
-// NewSoundSourceEnableFunc returns a function that returns true if a source source is in use.
-func NewSoundSourceEnableFunc(exec CommandExecutor, source string) EnableFunc {
-	return func() (bool, error) {
-		// Return true if source is blank.
-		if source == "" {
-			return true, nil
-		}
-
-		// Check if the current source matches.
-		if b, err := exec(OSAScriptPath, nil, strings.NewReader(strings.TrimSpace(soundSourceScript))); err != nil {
-			return false, fmt.Errorf("exec source source: %s", err)
-		} else if strings.TrimSpace(string(b)) == source {
-			return true, nil
-		}
-
-		return false, nil
-	}
-}
-
-type EnableFunc func() (bool, error)
-
-const soundSourceScript = `
-tell application "System Preferences"
-   reveal anchor "output" of pane id ¬
-       "com.apple.preference.sound"
-end tell
-tell application "System Events"
-   set S to value of text field 1 of row 1 of table 1 of ¬
-       scroll area 1 of tab group 1 of window "Sound" of ¬
-       application process "System Preferences"
-end tell
-`
+const displayNotificationScript = `display notification %q with title "Boxer"`
