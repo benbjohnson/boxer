@@ -1,7 +1,6 @@
 package main_test
 
 import (
-	"image/color"
 	"testing"
 	"time"
 
@@ -29,30 +28,5 @@ interval = "1h"
 		t.Fatalf("unexpected wallpaper.step: %v", config.Wallpaper.Step)
 	} else if config.Wallpaper.Interval != (main.Duration{1 * time.Hour}) {
 		t.Fatalf("unexpected wallpaper.interval: %v", config.Wallpaper.Interval)
-	}
-}
-
-// Ensure colors in the "#000000" format can be parsed.
-func TestParseColor_WithHash(t *testing.T) {
-	if c, err := main.ParseColor("#102030"); err != nil {
-		t.Fatal(err)
-	} else if c != (color.RGBA{R: 16, G: 32, B: 48, A: 255}) {
-		t.Fatalf("unexpected color: %#v", c)
-	}
-}
-
-// Ensure colors in the "000000" format can be parsed.
-func TestParseColor_WithoutHash(t *testing.T) {
-	if c, err := main.ParseColor("102030"); err != nil {
-		t.Fatal(err)
-	} else if c != (color.RGBA{R: 16, G: 32, B: 48, A: 255}) {
-		t.Fatalf("unexpected color: %#v", c)
-	}
-}
-
-// Ensure colors with an invalid format return an error.
-func TestParseColor_ErrInvalid(t *testing.T) {
-	if _, err := main.ParseColor("bad_color"); err == nil || err.Error() != `cannot parse color: "bad_color"` {
-		t.Fatal(err)
 	}
 }

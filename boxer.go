@@ -2,10 +2,14 @@ package boxer
 
 import (
 	"fmt"
+	"image/color"
 	"io"
 	"log"
+	"math"
 	"os"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"time"
 )
 
@@ -22,21 +26,21 @@ type Ticker struct {
 
 	// A function used to return the current time.
 	// This is used for testing.
-	NowFunc func() time.Time
+	Now NowFunc
 }
 
 // NewTicker returns a new instance of Ticker with default settings.
 func NewTicker() *Ticker {
 	return &Ticker{
-		Logger:  log.New(os.Stderr, "", 0),
-		NowFunc: time.Now,
+		Logger: log.New(os.Stderr, "", 0),
+		Now:    time.Now,
 	}
 }
 
 // Tick checks the current time to see if a new segment or interval has occurred.
 func (t *Ticker) Tick() {
 	// Retrieve the current time.
-	now := t.NowFunc()
+	now := t.Now()
 
 	// Iterate over each command.
 	for _, cmd := range t.Commands {
@@ -94,6 +98,46 @@ func DefaultCommandExecutor(name string, args []string, stdin io.Reader) ([]byte
 	cmd.Stdin = stdin
 	return cmd.CombinedOutput()
 }
+
+// ParseColor parses a hex color.
+func ParseColor(s string) (color.RGBA, error) {
+	m := regexp.MustCompile(`^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$`).FindStringSubmatch(s)
+	if m == nil {
+		return color.RGBA{}, fmt.Errorf("cannot parse color: %q", s)
+	}
+
+	r, _ := strconv.ParseUint(m[1], 16, 8)
+	g, _ := strconv.ParseUint(m[2], 16, 8)
+	b, _ := strconv.ParseUint(m[3], 16, 8)
+	return color.RGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: 0xFF}, nil
+}
+
+// TransposeColor returns a color that is pct percent between a and b.
+func TransposeColor(a, b color.Color, pct float64) color.Color {
+	ar, ag, ab, aa := a.RGBA()
+	br, bg, bb, ba := b.RGBA()
+	return color.RGBA{
+		R: transposeUint8(uint8(ar), uint8(br), pct),
+		G: transposeUint8(uint8(ag), uint8(bg), pct),
+		B: transposeUint8(uint8(ab), uint8(bb), pct),
+		A: transposeUint8(uint8(aa), uint8(ba), pct),
+	}
+}
+
+// transposeUint8 returns a value pct percent between a and b.
+func transposeUint8(a, b uint8, pct float64) uint8 {
+	delta := (float64(b) - float64(a)) * pct
+	if v := float64(a) + delta; v < 0 {
+		return 0
+	} else if v > math.MaxUint8 {
+		return math.MaxUint8
+	} else {
+		return uint8(v)
+	}
+}
+
+// NowFunc is a function that returns the current time.
+type NowFunc func() time.Time
 
 func warn(v ...interface{})              { fmt.Fprintln(os.Stderr, v...) }
 func warnf(msg string, v ...interface{}) { fmt.Fprintf(os.Stderr, msg+"\n", v...) }

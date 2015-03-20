@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/benbjohnson/boxer"
 )
@@ -82,7 +83,9 @@ func TestWallpaperHandler_ErrGenerator(t *testing.T) {
 func TestWallpaperHandler_ErrSetWallpaper(t *testing.T) {
 	sizer := func(exec boxer.CommandExecutor) (w, h int, err error) { return 0, 0, nil }
 	generator := func(path string, w, h int, pct float64) error { return nil }
-	exec := func(name string, args []string, stdin io.Reader) ([]byte, error) { return nil, errors.New("bad exec") }
+	exec := func(name string, args []string, stdin io.Reader) ([]byte, error) {
+		return []byte("bad exec"), errors.New("")
+	}
 
 	h := boxer.NewWallpaperHandler(exec, sizer, generator, "")
 	if err := h(0, 10); err == nil || err.Error() != `exec: bad exec` {
@@ -94,7 +97,18 @@ func TestWallpaperHandler_ErrSetWallpaper(t *testing.T) {
 func TestGenerateWallpaper(t *testing.T) {
 	// Generate a new wallpaper image to a temp file.
 	path := NewTempFile()
-	fn := boxer.NewWallpaperGenerator(color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF}, color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xFF})
+	fn, err := boxer.NewWallpaperGenerator(
+		func() time.Time { return time.Date(2000, 1, 1, 6, 0, 0, 0, time.UTC) },
+		[]time.Time{
+			time.Date(0, 1, 1, 4, 0, 0, 0, time.UTC),
+			time.Date(0, 1, 1, 8, 0, 0, 0, time.UTC),
+		},
+		[]color.RGBA{{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF}, {R: 0xDD, G: 0xDD, B: 0xDD, A: 0xFF}},
+		[]color.RGBA{{R: 0x00, G: 0x00, B: 0x00, A: 0xFF}, {R: 0x22, G: 0x22, B: 0x22, A: 0xFF}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := fn(path, 100, 200, 0.28371); err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +143,7 @@ func TestDesktopSize(t *testing.T) {
 // Ensure the desktop size returns an error if osascript cannot be executed.
 func TestDesktopSize_ErrSystem(t *testing.T) {
 	exec := func(name string, args []string, stdin io.Reader) ([]byte, error) {
-		return nil, errors.New("cannot run")
+		return []byte("cannot run"), errors.New("")
 	}
 	if _, _, err := boxer.DesktopSize(exec); err == nil || err.Error() != `exec: cannot run` {
 		t.Fatal(err)

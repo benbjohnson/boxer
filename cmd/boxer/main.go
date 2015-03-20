@@ -9,8 +9,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -127,20 +125,41 @@ func NewTicker(c *Config, exec boxer.CommandExecutor) (*boxer.Ticker, error) {
 	t := boxer.NewTicker()
 
 	if c.Wallpaper.Enabled {
+		// Parse times from config.
+		var times []time.Time
+		for _, s := range c.Wallpaper.Times {
+			t, err := time.Parse("3:04pm", s)
+			if err != nil {
+				return nil, fmt.Errorf("parse wallpaper time: %s", err)
+			}
+			times = append(times, t)
+		}
+
 		// Parse foreground color from config.
-		foreground, err := ParseColor(c.Wallpaper.Foreground)
-		if err != nil {
-			return nil, fmt.Errorf("parse wallpaper foreground: %s", err)
+		var foregrounds []color.RGBA
+		for _, s := range c.Wallpaper.Foregrounds {
+			c, err := boxer.ParseColor(s)
+			if err != nil {
+				return nil, fmt.Errorf("parse wallpaper foreground: %s", err)
+			}
+			foregrounds = append(foregrounds, c)
 		}
 
 		// Parse backgroun color from config.
-		background, err := ParseColor(c.Wallpaper.Background)
-		if err != nil {
-			return nil, fmt.Errorf("parse wallpaper background: %s", err)
+		var backgrounds []color.RGBA
+		for _, s := range c.Wallpaper.Backgrounds {
+			c, err := boxer.ParseColor(s)
+			if err != nil {
+				return nil, fmt.Errorf("parse wallpaper background: %s", err)
+			}
+			backgrounds = append(backgrounds, c)
 		}
 
 		// Create a wallpaper generator.
-		generator := boxer.NewWallpaperGenerator(foreground, background)
+		generator, err := boxer.NewWallpaperGenerator(time.Now, times, foregrounds, backgrounds)
+		if err != nil {
+			return nil, fmt.Errorf("wallpaper generator: %s", err)
+		}
 
 		// Generate a new command.
 		t.Commands = append(t.Commands, boxer.Command{
@@ -179,11 +198,12 @@ type Config struct {
 	WorkDir string `toml:"work_dir"`
 
 	Wallpaper struct {
-		Enabled    bool     `toml:"enabled"`
-		Step       Duration `toml:"step"`
-		Interval   Duration `toml:"interval"`
-		Foreground string   `toml:"foreground"`
-		Background string   `toml:"background"`
+		Enabled     bool     `toml:"enabled"`
+		Step        Duration `toml:"step"`
+		Interval    Duration `toml:"interval"`
+		Times       []string `toml:"times"`
+		Foregrounds []string `toml:"foregrounds"`
+		Backgrounds []string `toml:"backgrounds"`
 	} `toml:"wallpaper"`
 
 	MenuBar struct {
@@ -207,8 +227,6 @@ func NewConfig() *Config {
 	c.Wallpaper.Enabled = false
 	c.Wallpaper.Step = Duration{1 * time.Minute}
 	c.Wallpaper.Interval = Duration{15 * time.Minute}
-	c.Wallpaper.Foreground = "#534B4D"
-	c.Wallpaper.Background = "#9AC97C"
 
 	c.MenuBar.Enabled = false
 	c.MenuBar.Step = Duration{5 * time.Minute}
@@ -233,19 +251,6 @@ func (d *Duration) UnmarshalText(text []byte) error {
 
 	d.Duration = v
 	return nil
-}
-
-// ParseColor parses a hex color.
-func ParseColor(s string) (color.RGBA, error) {
-	m := regexp.MustCompile(`^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$`).FindStringSubmatch(s)
-	if m == nil {
-		return color.RGBA{}, fmt.Errorf("cannot parse color: %q", s)
-	}
-
-	r, _ := strconv.ParseUint(m[1], 16, 8)
-	g, _ := strconv.ParseUint(m[2], 16, 8)
-	b, _ := strconv.ParseUint(m[3], 16, 8)
-	return color.RGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: 0xFF}, nil
 }
 
 func warn(v ...interface{})              { fmt.Fprintln(os.Stderr, v...) }

@@ -56,8 +56,61 @@ type WallpaperGenerator func(path string, w, h int, pct float64) error
 
 // GenerateWallpaper generates a PNG wallpaper with a given size and color.
 // The wallpaper will draw the foreground covering pct percent of the image.
-func NewWallpaperGenerator(foreground, background color.RGBA) WallpaperGenerator {
+func NewWallpaperGenerator(now NowFunc, times []time.Time, foregrounds, backgrounds []color.RGBA) (WallpaperGenerator, error) {
+	// Validate and normalize foreground colors.
+	if len(foregrounds) == 0 {
+		return nil, fmt.Errorf("foreground color required")
+	} else if len(foregrounds) > 2 {
+		return nil, fmt.Errorf("too many foreground colors specified")
+	} else if len(foregrounds) == 1 {
+		foregrounds = append(foregrounds, foregrounds[0])
+	}
+
+	// Validate and normalize background colors.
+	if len(backgrounds) == 0 {
+		return nil, fmt.Errorf("background color required")
+	} else if len(backgrounds) > 2 {
+		return nil, fmt.Errorf("too many background colors specified")
+	} else if len(backgrounds) == 1 {
+		backgrounds = append(backgrounds, backgrounds[0])
+	}
+
+	// Validate and normalize times.
+	// All times should be relative to the zero day.
+	switch len(times) {
+	case 0:
+		times = []time.Time{time.Time{}, time.Time{}.Add(24 * time.Hour)}
+	case 1:
+		times[0] = normalizeTime(times[0])
+		times = append(times, times[0].Truncate(24*time.Hour).Add(24*time.Hour))
+	case 2:
+		times[0] = normalizeTime(times[0])
+		times[1] = normalizeTime(times[1])
+	default:
+		return nil, fmt.Errorf("too many times specified")
+	}
+
+	// Ensure second time is after first.
+	if times[0].After(times[1]) {
+		return nil, fmt.Errorf("times are out of order")
+	}
+
+	// Fill colors to match time slice size.
 	return func(path string, w, h int, pct float64) error {
+		// Retrieve the current time and determine transposition percent.
+		var transPct float64
+		if t := normalizeTime(now()); t.Before(times[0]) {
+			transPct = 0
+		} else if t.After(times[1]) {
+			transPct = 1
+		} else {
+			transPct = float64(t.Sub(times[0])) / float64(times[1].Sub(times[0]))
+		}
+
+		// Transpose colors.
+		fg := TransposeColor(foregrounds[0], foregrounds[1], transPct)
+		bg := TransposeColor(backgrounds[0], backgrounds[1], transPct)
+
 		// Ensure the parent directory exists.
 		if err := os.MkdirAll(filepath.Dir(path), 0777); err != nil {
 			return fmt.Errorf("mkdir: %s", err)
@@ -65,8 +118,8 @@ func NewWallpaperGenerator(foreground, background color.RGBA) WallpaperGenerator
 
 		// Create image with the foreground color covering a percentage of the background.
 		m := image.NewRGBA(image.Rect(0, 0, w, h))
-		draw.Draw(m, m.Bounds(), &image.Uniform{background}, image.ZP, draw.Over)
-		draw.Draw(m, image.Rect(0, 0, w, int(float64(h)*pct)), &image.Uniform{foreground}, image.Point{X: 0, Y: int(float64(h) * (1.0 - pct))}, draw.Over)
+		draw.Draw(m, m.Bounds(), &image.Uniform{bg}, image.ZP, draw.Over)
+		draw.Draw(m, image.Rect(0, 0, w, int(float64(h)*pct)), &image.Uniform{fg}, image.Point{X: 0, Y: int(float64(h) * (1.0 - pct))}, draw.Over)
 
 		// Open output file.
 		f, err := os.Create(path)
@@ -81,7 +134,12 @@ func NewWallpaperGenerator(foreground, background color.RGBA) WallpaperGenerator
 		}
 
 		return nil
-	}
+	}, nil
+}
+
+// normalizeTime removes the year, month, day components of a time.
+func normalizeTime(t time.Time) time.Time {
+	return time.Date(0, 1, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
 }
 
 // DesktopSizer returns the size of the desktop screen.
