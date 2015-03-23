@@ -167,41 +167,24 @@ end tell
 // NewMenuBarHandler returns a handler for flashing the menu bar.
 func NewMenuBarHandler(exec CommandExecutor) Handler {
 	return func(i, n int) error {
-		// Flash the menu bar on the first step.
-		if i == 0 {
-			if b, err := exec(OSAScriptPath, nil, strings.NewReader(strings.TrimSpace(flashDarkModeScript))); err != nil {
-				return fmt.Errorf("exec flash: %s", b)
-			}
-			return nil
-		}
-
-		// For other steps set dark mode on and off every other step.
-		darkMode := (i%2 == 1)
-		src := fmt.Sprintf(strings.TrimSpace(setDarkModeScript), darkMode)
-		if b, err := exec(OSAScriptPath, nil, strings.NewReader(src)); err != nil {
-			return fmt.Errorf("exec set dark mode: %s", b)
+		// Flash menu bar.
+		if b, err := exec(OSAScriptPath, nil, strings.NewReader(strings.TrimSpace(flashDarkModeScript))); err != nil {
+			return fmt.Errorf("exec flash: %s", b)
 		}
 		return nil
 	}
 }
 
+// flashDarkModeScript flashes the menu bar on and off for 30 seconds.
 const flashDarkModeScript = `
 tell application "System Events"
   tell appearance preferences
-    repeat 5 times
+    repeat 30 times
       set dark mode to true
-      delay 1
+      delay 0.5
       set dark mode to false
-      delay 1
+      delay 0.5
     end repeat
-  end tell
-end tell
-`
-
-const setDarkModeScript = `
-tell application "System Events"
-  tell appearance preferences
-    set dark mode to %v
   end tell
 end tell
 `

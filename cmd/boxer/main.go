@@ -184,7 +184,6 @@ func NewTicker(c *Config, exec boxer.CommandExecutor) (*boxer.Ticker, error) {
 	if c.MenuBar.Enabled {
 		t.Commands = append(t.Commands, boxer.Command{
 			Name:     "menu_bar",
-			Step:     c.MenuBar.Step.Duration,
 			Interval: c.MenuBar.Interval.Duration,
 			Handler:  boxer.NewMenuBarHandler(exec),
 		})
@@ -208,7 +207,6 @@ type Config struct {
 
 	MenuBar struct {
 		Enabled  bool     `toml:"enabled"`
-		Step     Duration `toml:"step"`
 		Interval Duration `toml:"interval"`
 	} `toml:"menu_bar"`
 
@@ -229,7 +227,6 @@ func NewConfig() *Config {
 	c.Wallpaper.Interval = Duration{15 * time.Minute}
 
 	c.MenuBar.Enabled = false
-	c.MenuBar.Step = Duration{5 * time.Minute}
 	c.MenuBar.Interval = Duration{15 * time.Minute}
 
 	c.Announcement.Enabled = false
